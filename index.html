@@ -1,0 +1,161 @@
+<!-- index.html -->
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>NFT game</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/moralis/dist/moralis.js"></script>
+	<script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+  </head>
+
+  <body>
+    <button id="btn-login">Moralis Metamask Login</button>
+    <button id="btn-logout">Logout</button>
+    <script type="text/javascript" src="./main.js"></script>
+  </body>
+  <script>
+  var config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+	physics: {
+		default: 'arcade',
+		arcade: {
+			gravity: { y: 300},
+			debug: false
+			}
+		},
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+var game = new Phaser.Game(config);
+var plataforms;
+var player;
+var competitors = {};
+var cursor;
+
+//login
+function launch(){
+    let user = Moralis.User.current();
+    if (!user) {
+        console.log("Please Log in With MetaMask!")
+    }
+    else{
+        console.log(user.get("ethAddress") + " " + "logged in")
+        game = new Phaser.Game(config);
+    }
+}
+
+//ld
+function preload ()
+{
+this.load.image('background', 'assets/val.jpg');
+this.load.image('player', 'assets/player.png');
+this.load.image('ground', 'assets/Tiles/Tile (12).png');
+this.load.image('ground1', 'assets/Tiles/Tile (14).png');
+this.load.image('box', 'assets/Tiles/Tile (1).png');
+this.load.image('box1', 'assets/Tiles/Tile (3).png');
+this.load.image('obj', 'assets/Objects/Box.png');
+this.load.image('swc', 'assets/Objects/Switch (1).png');
+
+this.anims.create({
+    key: 'left',
+    frames: this.anims.generateFrameNumbers('player', { start: 0, end: 3 }),
+    frameRate: 10,
+    repeat: -1
+});
+
+}
+//is
+async function create ()
+{
+this.add.image(400, 300, 'background');
+
+    platforms = this.physics.add.staticGroup();
+    platforms.create(100, 570, 'ground').setScale(0.3).refreshBody();
+    platforms.create(175, 570, 'ground1').setScale(0.3).refreshBody();
+
+    platforms.create(300, 430, 'box').setScale(0.3).refreshBody();
+    platforms.create(375, 430, 'box1').setScale(0.3).refreshBody();
+
+    platforms.create(560, 270, 'obj').setScale(0.3).refreshBody();
+        platforms.create(590, 200, 'swc').setScale(0.3).refreshBody();
+
+    player = this.physics.add.sprite(100, 450, 'player').setScale(0.4).refreshBody();
+    player.setBounce(0.2);
+
+    //player.setCollideWorldBounds(true);
+    this.physics.add.collider(player, platforms);
+    cursors = this.input.keyboard.createCursorKeys();
+
+    let user = Moralis.User.current();
+    let query = new Moralis.Query('PlayerPosition');
+    let subscription = await query.subscribe();
+    subscribe.on('create', (plocation) => {
+        if(plocation.get("player") != user.get("ethAddress")){
+
+            if(competitors[plocation.get("player")] == undefined){
+                competitors[plocation.get("player")] = this.add.image(plocation.get("x"), plocation.get("y"), 'player').setScale(0.4).refreshBody();
+            }
+            else{
+                competitors[plocation.get("player")].x = plocation.get("x"); 
+                competitors[plocation.get("player")].y = plocation.get("y"); 
+            }
+
+            console.log("someone moved")
+            console.log(plocation.get("player"))
+            console.log("new X ", plocation.get("x"))
+            console.log("new Y ", plocation.get("y"))
+        }
+    });
+}
+//60sec
+async function update ()
+{
+    if (cursors.left.isDown)
+{
+    player.setVelocityX(-160);
+
+    player.anims.play('left', true);
+}
+else if (cursors.right.isDown)
+{
+    player.setVelocityX(160);
+
+    player.anims.play('right', true);
+}
+else
+{
+    player.setVelocityX(0);
+
+    player.anims.play('turn');
+}
+
+if (cursors.up.isDown && player.body.touching.down)
+{
+    player.setVelocityY(-330);
+}
+
+if(player.lastX!=player.x || player.lastY!=player.y){
+    let user = Moralis.User.current();
+
+    const PlayerPosition = Moralis.Object.extend("PlayerPosition");
+    const playerposition = new PlayerPosition();
+
+    playerPosition.set("player",user.get("ethAddress"));
+    playerPosition.set("x",player.x);
+    playerPosition.set("y",player.y)
+
+    player.lastX = player.x;
+    player.lastY = player.y;
+
+    await playerPosition.save();
+}
+}
+  </script>
+</html>
